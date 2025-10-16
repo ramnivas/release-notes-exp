@@ -14,6 +14,9 @@ on:
     tags:
       - "*"
 
+permissions:
+  contents: write
+
 jobs:
   # Create draft release with auto-generated notes (only for tags)
   create-release:

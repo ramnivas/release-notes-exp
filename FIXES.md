@@ -4,7 +4,35 @@ This document tracks important fixes and improvements made in this test reposito
 
 ## Critical Fixes
 
-### 1. Add `fetch-depth: 0` to create-release job
+### 1. Add `contents: write` permission to workflow (if needed)
+
+**File:** `.github/workflows/build-binaries.yml` (Exograph) / `.github/workflows/release.yml` (here)
+
+**Location:** At the workflow level, after the `on:` trigger
+
+**Problem:** Without explicit permissions, the GITHUB_TOKEN may only have read access, causing `gh release create` to fail with:
+```
+HTTP 403: Resource not accessible by integration
+```
+
+**Fix:**
+```yaml
+permissions:
+  contents: write
+```
+
+**Why:** GitHub Actions requires `contents: write` permission to create releases. Without this, the workflow fails with a 403 error when trying to call the GitHub API to create releases.
+
+**Note:** Exograph's workflow currently works without explicitly setting permissions because the repository has "Read and write permissions" set as the default in Settings > Actions > General > Workflow permissions. However, adding explicit permissions is a best practice for:
+- Clarity and self-documentation
+- Portability (works regardless of repository settings)
+- Security (explicit is better than implicit)
+
+This fix may not be necessary for Exograph, but is good practice and required for repositories with restrictive default permissions.
+
+---
+
+### 2. Add `fetch-depth: 0` to create-release job
 
 **File:** `.github/workflows/build-binaries.yml` (Exograph) / `.github/workflows/release.yml` (here)
 
@@ -30,7 +58,7 @@ Without full history, only the current tag is available, breaking the comparison
 
 ## Critical Fixes (Continued)
 
-### 2. Handle edge case: tags point to same commit
+### 3. Handle edge case: tags point to same commit
 
 **File:** `.github/workflows/build-binaries.yml` (Exograph) / `.github/workflows/release.yml` (here)
 
@@ -58,7 +86,7 @@ fi
 
 ## Improvements (Optional)
 
-### 3. Add debug output for troubleshooting
+### 4. Add debug output for troubleshooting
 
 **File:** `.github/workflows/build-binaries.yml` (Exograph) / `.github/workflows/release.yml` (here)
 
@@ -98,9 +126,11 @@ fi
 
 ## Status
 
-- [x] Fix #1 (fetch-depth: 0) applied to test repo
-- [x] Fix #2 (tags on same commit) applied to test repo
-- [x] Improvement #3 (debug output) applied to test repo
+- [x] Fix #1 (contents: write permission) applied to test repo
+- [x] Fix #2 (fetch-depth: 0) applied to test repo
+- [x] Fix #3 (tags on same commit) applied to test repo
+- [x] Improvement #4 (debug output) applied to test repo
 - [ ] Fix #1 ported to Exograph
 - [ ] Fix #2 ported to Exograph
+- [ ] Fix #3 ported to Exograph
 - [ ] Improvements reviewed for Exograph
