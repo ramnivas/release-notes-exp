@@ -2,8 +2,9 @@
 # Based on Exograph's build-binaries.yml but simplified for testing
 #
 # This workflow:
-# - Creates a draft release with auto-generated notes (only for tags)
-# - Uses the previous semantic version tag to generate notes
+# - Creates a draft release with custom-formatted notes (only for tags)
+# - Uses mikepenz/release-changelog-builder-action for formatting
+# - Uses the previous semantic version tag to scope notes between releases
 # - Builds binaries (simplified for testing)
 
 name: Release
@@ -18,7 +19,7 @@ permissions:
   contents: write
 
 jobs:
-  # Create draft release with auto-generated notes (only for tags)
+  # Create draft release with custom-formatted notes (only for tags)
   create-release:
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
@@ -28,7 +29,8 @@ jobs:
         with:
           fetch-depth: 0  # Fetch all history and tags
 
-      - name: Create draft release with auto-generated notes
+      - name: Find previous semantic version tag
+        id: previous_tag
         run: |
           set -x  # Enable debug mode to see all commands
 
@@ -52,26 +54,97 @@ jobs:
 
           if [ -n "$PREVIOUS_TAG" ]; then
             echo "Previous tag found: $PREVIOUS_TAG"
-            echo "Running: gh release create with --notes-start-tag"
-            gh release create "${{ github.ref_name }}" \
-              --draft \
-              --generate-notes \
-              --notes-start-tag "$PREVIOUS_TAG" \
-              --title "Release ${{ github.ref_name }}" || {
-                echo "Failed to create release with previous tag, trying without..."
-                gh release create "${{ github.ref_name }}" \
-                  --draft \
-                  --generate-notes \
-                  --title "Release ${{ github.ref_name }}"
-              }
+            echo "tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
           else
-            echo "No previous tag found or no commits between tags, generating notes from all history"
-            echo "Running: gh release create without --notes-start-tag"
-            gh release create "${{ github.ref_name }}" \
-              --draft \
-              --generate-notes \
-              --title "Release ${{ github.ref_name }}"
+            echo "No previous tag found or no commits between tags"
+            echo "tag=" >> $GITHUB_OUTPUT
           fi
+
+      - name: Generate release notes with custom format
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v5
+        with:
+          configuration: |
+            {
+              "pr_template": "- #{{TITLE}} ##{{NUMBER}}",
+              "categories": [
+                {
+                  "title": "## 🚨 Breaking Changes",
+                  "labels": ["breaking", "breaking-change"]
+                },
+                {
+                  "title": "## 🎉 Features",
+                  "labels": ["feat", "feature", "enhancement"]
+                },
+                {
+                  "title": "## 🐛 Bug Fixes",
+                  "labels": ["bug", "fix", "bugfix"]
+                },
+                {
+                  "title": "## 🔒 Security",
+                  "labels": ["security"]
+                },
+                {
+                  "title": "## 📚 Documentation",
+                  "labels": ["documentation", "docs"]
+                },
+                {
+                  "title": "## 🎨 Style",
+                  "labels": ["style"]
+                },
+                {
+                  "title": "## ⚡ Performance",
+                  "labels": ["performance", "perf"]
+                },
+                {
+                  "title": "## 🏗️ Refactoring",
+                  "labels": ["refactor", "refactoring"]
+                },
+                {
+                  "title": "## 🧪 Testing",
+                  "labels": ["test", "testing"]
+                },
+                {
+                  "title": "## 🔨 Build System",
+                  "labels": ["build"]
+                },
+                {
+                  "title": "## 👷 CI/CD",
+                  "labels": ["ci", "cd"]
+                },
+                {
+                  "title": "## 🔧 Maintenance",
+                  "labels": ["chore", "dependencies", "maintenance"]
+                },
+                {
+                  "title": "## ⏪ Reverts",
+                  "labels": ["revert"]
+                },
+                {
+                  "title": "## 🚀 Other Changes",
+                  "labels": []
+                }
+              ],
+              "label_extractor": [
+                {
+                  "pattern": ".*",
+                  "on_property": "title"
+                }
+              ],
+              "ignore_labels": ["ignore-for-release", "release"],
+              "ignore_authors": ["dependabot", "dependabot[bot]"]
+            }
+          fromTag: ${{ steps.previous_tag.outputs.tag }}
+          toTag: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create draft release with custom notes
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --draft \
+            --notes "${{ steps.changelog.outputs.changelog }}" \
+            --title "Release ${{ github.ref_name }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -92,18 +165,9 @@ jobs:
           mkdir -p dist
           cp target/release/release-notes-exp dist/ || echo "No binary to copy"
           cp LICENSE dist/ || echo "LICENSE" > dist/LICENSE
-          cd dist/
-          zip release-notes-exp.zip *
-          cd ..
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-notes-exp.zip
-          path: dist/release-notes-exp.zip
+          cd dist && zip release-notes-exp.zip * && cd ..
 
       - name: Upload zip to draft release
-        if: startsWith(github.ref, 'refs/tags/')
         run: |
           gh release upload "${{ github.ref_name }}" dist/release-notes-exp.zip --clobber
         env:

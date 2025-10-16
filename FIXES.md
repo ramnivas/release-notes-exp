@@ -276,6 +276,56 @@ This is Exograph's workflow - all changes go through PRs with appropriate labels
 
 ---
 
+## Improvement: Custom Release Note Format
+
+**Alternative Approach (test repo):** Replace GitHub's native `--generate-notes` with `mikepenz/release-changelog-builder-action`:
+
+**Problem:** GitHub's native release notes include author and PR number in format: `"feat: Add feature by @author in #123"`. For cleaner notes, you may want to omit the author: `"feat: Add feature #123"`.
+
+**Solution:** Use `mikepenz/release-changelog-builder-action` with custom `pr_template`:
+
+```yaml
+- name: Generate release notes with custom format
+  id: changelog
+  uses: mikepenz/release-changelog-builder-action@v5
+  with:
+    configuration: |
+      {
+        "pr_template": "- #{{TITLE}} ##{{NUMBER}}",
+        "categories": [
+          {"title": "## 🚨 Breaking Changes", "labels": ["breaking", "breaking-change"]},
+          {"title": "## 🎉 Features", "labels": ["feat", "feature", "enhancement"]},
+          ...
+        ],
+        "ignore_labels": ["ignore-for-release", "release"],
+        "ignore_authors": ["dependabot", "dependabot[bot]"]
+      }
+    fromTag: ${{ steps.previous_tag.outputs.tag }}
+    toTag: ${{ github.ref_name }}
+
+- name: Create draft release with custom notes
+  run: |
+    gh release create "${{ github.ref_name }}" \
+      --draft \
+      --notes "${{ steps.changelog.outputs.changelog }}" \
+      --title "Release ${{ github.ref_name }}"
+```
+
+**Benefits:**
+- Full control over release note formatting
+- Can omit author (`#{{AUTHOR}}`) for cleaner notes
+- Maintains all categorization from `.github/release.yml`
+- Actively maintained action (~800 stars)
+
+**Trade-offs:**
+- Replaces GitHub's native `--generate-notes` (which is simpler)
+- Category configuration now lives in workflow file instead of `.github/release.yml`
+- `.github/release.yml` is no longer used and can be removed
+
+**For Exograph:** Consider this approach only if custom formatting is desired. Otherwise, GitHub's native notes are simpler to maintain.
+
+---
+
 ## Status
 
 - [x] Fix #1 (contents: write permission) applied to test repo
@@ -284,8 +334,10 @@ This is Exograph's workflow - all changes go through PRs with appropriate labels
 - [x] Fix #4 (use gh release upload) applied to test repo
 - [x] Improvement (use bcoe/conventional-release-labels) applied to test repo
 - [x] Improvement (debug output) applied to test repo
+- [x] Improvement (custom release note format) applied to test repo
 - [ ] Fix #1 reviewed for Exograph (may not be needed)
 - [ ] Fix #2 ported to Exograph (CRITICAL - needed)
 - [ ] Fix #3 ported to Exograph (needed for edge cases)
 - [ ] Fix #4 ported to Exograph (IMPORTANT - eliminates duplicate releases)
 - [ ] Consider bcoe/conventional-release-labels for Exograph (optional simplification)
+- [ ] Consider custom release note format for Exograph (optional - for cleaner notes)
