@@ -98,4 +98,4 @@ Based on PR labels (configured in `.github/release.yml`):
 - `refactor` → 🏗️ Refactoring
 - `test` → 🧪 Testing
 - `ci` → 👷 CI/CD
-- `chore` → 🔧 Maintenance
+- `chore` → 🔧 Maintenancez
