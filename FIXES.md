@@ -116,22 +116,89 @@ fi
 
 ---
 
+### 4. Use `gh release upload` instead of `svenstaro/upload-release-action`
+
+**File:** `.github/workflows/build-binaries.yml` (Exograph) / `.github/workflows/release.yml` (here)
+
+**Location:** In the `build-artifacts` job (and other build jobs), the "Upload zip to release" step
+
+**Problem:** `svenstaro/upload-release-action` cannot upload to draft releases. It searches for a release by tag, but draft releases aren't tagged yet (they have "untagged-..." URLs). This causes it to create a NEW published release with no notes, resulting in duplicate releases.
+
+**Fix:**
+Replace:
+```yaml
+- name: Upload zip to release
+  if: startsWith(github.ref, 'refs/tags/')
+  uses: svenstaro/upload-release-action@v2
+  with:
+    repo_token: ${{ secrets.GITHUB_TOKEN }}
+    file: dist/exograph-${{matrix.target}}.zip
+    asset_name: exograph-${{matrix.target}}.zip
+    tag: ${{ github.ref }}
+    make_latest: false
+```
+
+With:
+```yaml
+- name: Upload zip to draft release
+  if: startsWith(github.ref, 'refs/tags/')
+  run: |
+    gh release upload "${{ github.ref_name }}" dist/exograph-${{matrix.target}}.zip --clobber
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+**Why:** `gh release upload` can upload to draft releases by tag name. The `--clobber` flag allows overwriting existing assets.
+
+**Benefit:** Eliminates duplicate releases and manual cleanup while preserving the ability to review and edit notes before publishing.
+
+---
+
 ## Issues Under Investigation
 
-### Double Release Creation
+### Double Release Creation & "untagged-..." URLs
 
-**Problem:** When the workflow runs, two releases get created for the same tag:
-1. A draft release with title "Release vX.X.X" and generated notes (from `create-release` job)
-2. A published release with no title (from `svenstaro/upload-release-action` in `build-artifacts` job)
+**Root Cause:** `gh release create TAG --draft` creates a draft release that is NOT immediately bound to the tag. The draft gets an "untagged-..." URL initially and only gets properly tagged when published.
 
-**Current Solution (deviation from Exograph):** Added `needs: create-release` to `build-artifacts` job to ensure draft is created first before artifacts are uploaded.
+**Evidence:** Both test repo and Exograph show this behavior:
+- Test repo: `https://github.com/ramnivas/release-notes-exp/releases/tag/untagged-c02993dbc489e14e0fea`
+- Exograph: `https://github.com/exograph/exograph/releases/tag/untagged-c969982411002041eecc`
 
-**Question for Exograph:** Exograph doesn't use `needs:` and runs jobs in parallel, yet seems to only end up with one release. Possible explanations:
-- Longer build times mean draft is usually created before artifact upload runs
-- Manual cleanup of duplicate releases
-- Different behavior due to repository settings or permissions
+**Problem:** `svenstaro/upload-release-action` looks for a release by tag. Since the draft isn't tagged yet, it can't find it and creates a NEW published release with the tag but NO notes.
 
-**Testing needed:** Check if Exograph also experiences this issue but handles it manually.
+**Result:** Two releases for the same tag:
+1. Draft with notes but "untagged-..." URL (from `create-release` job)
+2. Published with correct tag but NO notes (from `svenstaro/upload-release-action`)
+
+**Exograph's Approach:** The draft release is created, assets are uploaded (creating the duplicate), then someone **manually publishes the draft release** through the GitHub UI or `gh` CLI. The comment in their workflow says:
+```
+# After this workflow is run:
+# - Review the release notes and binaries in the draft release
+# - Using the Github UI (or the `gh` cli), publish the release
+```
+
+**Current Solution (deviation from Exograph):** Added `needs: create-release` to ensure draft exists before upload, but this doesn't solve the dual-release issue - it just ensures timing.
+
+**Solution Implemented:** Use `gh release upload` instead of `svenstaro/upload-release-action`:
+
+```yaml
+- name: Upload zip to draft release
+  if: startsWith(github.ref, 'refs/tags/')
+  run: |
+    gh release upload "${{ github.ref_name }}" dist/release-notes-exp.zip --clobber
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+**Why this works:** `gh release upload` can upload to draft releases by tag name, even though drafts have "untagged-..." URLs. This prevents the duplicate release.
+
+**Workflow:**
+1. Tag pushed → draft release created with notes
+2. Assets uploaded to the draft
+3. Manual review/edit of notes via GitHub UI
+4. Click "Publish release" → one release with notes and assets
+
+**For Exograph:** Consider replacing `svenstaro/upload-release-action` with `gh release upload` to avoid creating duplicate releases. This eliminates the manual cleanup step while keeping the review capability.
 
 ---
 
@@ -149,8 +216,10 @@ fi
 - [x] Fix #1 (contents: write permission) applied to test repo
 - [x] Fix #2 (fetch-depth: 0) applied to test repo
 - [x] Fix #3 (tags on same commit) applied to test repo
-- [x] Improvement #4 (debug output) applied to test repo
-- [ ] Fix #1 ported to Exograph
-- [ ] Fix #2 ported to Exograph
-- [ ] Fix #3 ported to Exograph
+- [x] Fix #4 (use gh release upload) applied to test repo
+- [x] Improvement (debug output) applied to test repo
+- [ ] Fix #1 reviewed for Exograph (may not be needed)
+- [ ] Fix #2 ported to Exograph (CRITICAL - needed)
+- [ ] Fix #3 ported to Exograph (needed for edge cases)
+- [ ] Fix #4 ported to Exograph (IMPORTANT - eliminates duplicate releases)
 - [ ] Improvements reviewed for Exograph
