@@ -27,6 +27,8 @@ jobs:
 
       - name: Create draft release with auto-generated notes
         run: |
+          set -x  # Enable debug mode to see all commands
+
           # Get the previous semantic version tag
           echo "Current tag: ${{ github.ref_name }}"
           echo "All tags:"
@@ -47,13 +49,21 @@ jobs:
 
           if [ -n "$PREVIOUS_TAG" ]; then
             echo "Previous tag found: $PREVIOUS_TAG"
+            echo "Running: gh release create with --notes-start-tag"
             gh release create "${{ github.ref_name }}" \
               --draft \
               --generate-notes \
               --notes-start-tag "$PREVIOUS_TAG" \
-              --title "Release ${{ github.ref_name }}"
+              --title "Release ${{ github.ref_name }}" || {
+                echo "Failed to create release with previous tag, trying without..."
+                gh release create "${{ github.ref_name }}" \
+                  --draft \
+                  --generate-notes \
+                  --title "Release ${{ github.ref_name }}"
+              }
           else
             echo "No previous tag found or no commits between tags, generating notes from all history"
+            echo "Running: gh release create without --notes-start-tag"
             gh release create "${{ github.ref_name }}" \
               --draft \
               --generate-notes \
