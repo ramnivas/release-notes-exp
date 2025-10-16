@@ -61,7 +61,10 @@ The key release notes processing happens in the `create-release` job in `.github
    gh pr create --title "feat: Add cool feature" --body "Description"
    ```
 
-3. Add labels to the PR (feat, fix, docs, etc.) - these determine categorization in release notes
+3. **Labels are added automatically** by the label-prs workflow based on your first commit message
+   - `feat:` → `feat` label
+   - `fix:` → `fix` label
+   - etc.
 
 4. Merge the PR
 
