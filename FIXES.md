@@ -202,12 +202,36 @@ With:
 
 ---
 
+## Important: Release Notes Require Pull Requests
+
+GitHub's `--generate-notes` feature works with **Pull Requests**, not direct commits. To get detailed, categorized release notes:
+
+1. **Create feature branch** and make commits
+2. **Create PR** with descriptive title
+3. **Add labels** to PR (feat, fix, docs, etc.) - these determine which section the PR appears under
+4. **Merge PR** to main
+5. **Tag and push** - the tag triggers the workflow
+
+The `.github/release.yml` configuration maps PR labels to release note sections:
+- `feat` → 🎉 Features
+- `fix` → 🐛 Bug Fixes
+- `docs` → 📚 Documentation
+- etc.
+
+**Without PRs:** You'll only get "Full Changelog" link (what you're seeing now).
+**With PRs:** You'll get nicely formatted, categorized notes like Exograph's releases.
+
+This is Exograph's workflow - all changes go through PRs with appropriate labels.
+
+---
+
 ## Testing Notes
 
 - Test with multiple tags to ensure release notes are generated correctly between versions
 - Test with a single tag to ensure it doesn't fail
 - Verify that release notes are scoped to commits between the previous and current tag
 - Verify that only one release is created (not duplicates)
+- **Use PRs with labels** to test categorized release notes
 
 ---
 

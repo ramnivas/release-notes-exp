@@ -42,27 +42,52 @@ The key release notes processing happens in the `create-release` job in `.github
 
 ## Testing the Workflow
 
-To test the release notes processing:
+**Important:** GitHub's auto-generated release notes work with **Pull Requests**, not direct commits. Use PRs with labels for best results.
 
-1. Make some commits:
+### Testing with Pull Requests (recommended)
+
+1. Create a feature branch and make changes:
 
    ```bash
+   git checkout -b feat/new-feature
+   # Make your changes
    git commit -m "Add new feature"
-   git commit -m "Fix bug in module"
-   git commit -m "Update documentation"
+   git push origin feat/new-feature
    ```
 
-2. Create and push a tag:
+2. Create a PR via GitHub UI or CLI:
 
    ```bash
-   git tag v0.1.0
-   git push origin v0.1.0
+   gh pr create --title "feat: Add cool feature" --body "Description"
    ```
 
-3. The workflow will:
+3. Add labels to the PR (feat, fix, docs, etc.) - these determine categorization in release notes
 
-   - Create a draft release
-   - Generate notes from all commits since the last tag
+4. Merge the PR
+
+5. Create and push a tag:
+
+   ```bash
+   git tag v0.2.0
+   git push origin v0.2.0
+   ```
+
+6. The workflow will:
+
+   - Create a draft release with categorized notes
    - Upload build artifacts (if build succeeds)
 
-4. View the draft release on GitHub and review the generated notes
+7. View the draft release on GitHub, edit if needed, then publish
+
+### Release Note Categories
+
+Based on PR labels (configured in `.github/release.yml`):
+- `feat` → 🎉 Features
+- `fix` → 🐛 Bug Fixes
+- `docs` → 📚 Documentation
+- `security` → 🔒 Security
+- `perf` → ⚡ Performance
+- `refactor` → 🏗️ Refactoring
+- `test` → 🧪 Testing
+- `ci` → 👷 CI/CD
+- `chore` → 🔧 Maintenance
