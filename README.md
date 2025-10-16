@@ -82,6 +82,7 @@ The key release notes processing happens in the `create-release` job in `.github
 ### Release Note Categories
 
 Based on PR labels (configured in `.github/release.yml`):
+
 - `feat` → 🎉 Features
 - `fix` → 🐛 Bug Fixes
 - `docs` → 📚 Documentation
@@ -91,3 +92,5 @@ Based on PR labels (configured in `.github/release.yml`):
 - `test` → 🧪 Testing
 - `ci` → 👷 CI/CD
 - `chore` → 🔧 Maintenance
+
+test change
