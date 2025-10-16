@@ -116,11 +116,31 @@ fi
 
 ---
 
+## Issues Under Investigation
+
+### Double Release Creation
+
+**Problem:** When the workflow runs, two releases get created for the same tag:
+1. A draft release with title "Release vX.X.X" and generated notes (from `create-release` job)
+2. A published release with no title (from `svenstaro/upload-release-action` in `build-artifacts` job)
+
+**Current Solution (deviation from Exograph):** Added `needs: create-release` to `build-artifacts` job to ensure draft is created first before artifacts are uploaded.
+
+**Question for Exograph:** Exograph doesn't use `needs:` and runs jobs in parallel, yet seems to only end up with one release. Possible explanations:
+- Longer build times mean draft is usually created before artifact upload runs
+- Manual cleanup of duplicate releases
+- Different behavior due to repository settings or permissions
+
+**Testing needed:** Check if Exograph also experiences this issue but handles it manually.
+
+---
+
 ## Testing Notes
 
 - Test with multiple tags to ensure release notes are generated correctly between versions
 - Test with a single tag to ensure it doesn't fail
 - Verify that release notes are scoped to commits between the previous and current tag
+- Verify that only one release is created (not duplicates)
 
 ---
 
