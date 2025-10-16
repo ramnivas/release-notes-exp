@@ -202,9 +202,19 @@ With:
 
 ---
 
-## Important: Release Notes Require Pull Requests
+## Important: Release Notes Require Pull Requests with Labels
 
-GitHub's `--generate-notes` feature works with **Pull Requests**, not direct commits. To get detailed, categorized release notes:
+GitHub's `--generate-notes` feature works with **Pull Requests with labels**, not direct commits. To get detailed, categorized release notes:
+
+### Automatic Labeling
+
+The `.github/workflows/label-prs.yml` workflow automatically labels PRs based on conventional commit prefixes in the first commit:
+- `feat:` or `feat(scope):` → adds `feat` label
+- `fix:` or `fix(scope):` → adds `fix` label
+- `docs:` or `docs(scope):` → adds `docs` label
+- etc.
+
+### Manual Process
 
 1. **Create feature branch** and make commits
 2. **Create PR** with descriptive title
