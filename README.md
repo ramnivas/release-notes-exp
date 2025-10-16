@@ -55,15 +55,19 @@ The key release notes processing happens in the `create-release` job in `.github
    git push origin feat/new-feature
    ```
 
-2. Create a PR via GitHub UI or CLI:
+2. Create a PR via GitHub UI or CLI with a **conventional commit title**:
 
    ```bash
    gh pr create --title "feat: Add cool feature" --body "Description"
    ```
 
-3. **Labels are added automatically** by the label-prs workflow based on your first commit message
-   - `feat:` → `feat` label
-   - `fix:` → `fix` label
+   **Important:** The PR title must follow conventional commits format (e.g., `feat:`, `fix:`, `docs:`)
+
+3. **Labels are added automatically** by the label-prs workflow based on your PR title
+
+   - `feat: ...` → `feat` label
+   - `fix: ...` → `fix` label
+   - `docs: ...` → `docs` label
    - etc.
 
 4. Merge the PR
@@ -95,5 +99,3 @@ Based on PR labels (configured in `.github/release.yml`):
 - `test` → 🧪 Testing
 - `ci` → 👷 CI/CD
 - `chore` → 🔧 Maintenance
-
-test change

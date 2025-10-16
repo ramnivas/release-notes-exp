@@ -245,15 +245,47 @@ This is Exograph's workflow - all changes go through PRs with appropriate labels
 
 ---
 
+## Improvement: Use Maintained Action for PR Labeling
+
+**Alternative Approach (test repo):** Replace custom labeling code with `bcoe/conventional-release-labels`:
+
+```yaml
+- uses: bcoe/conventional-release-labels@v1
+  with:
+    type_labels: >
+      {
+        "feat": "feat",
+        "fix": "fix",
+        "docs": "docs",
+        ...
+      }
+```
+
+**Benefits:**
+- Maintained by the community
+- Well-tested and widely used
+- No custom code to maintain
+- Handles edge cases automatically
+
+**Important Difference from Exograph:**
+- **Exograph's custom code:** Labels based on **first commit message** in PR
+- **bcoe action:** Labels based on **PR title** only
+- **Trade-off:** Simpler but requires PR titles to follow conventional commits (e.g., "feat: Add feature")
+
+**For Exograph:** Consider this approach if team is willing to enforce conventional PR titles. Otherwise, keep the custom code for the flexibility of commit-based labeling.
+
+---
+
 ## Status
 
 - [x] Fix #1 (contents: write permission) applied to test repo
 - [x] Fix #2 (fetch-depth: 0) applied to test repo
 - [x] Fix #3 (tags on same commit) applied to test repo
 - [x] Fix #4 (use gh release upload) applied to test repo
+- [x] Improvement (use bcoe/conventional-release-labels) applied to test repo
 - [x] Improvement (debug output) applied to test repo
 - [ ] Fix #1 reviewed for Exograph (may not be needed)
 - [ ] Fix #2 ported to Exograph (CRITICAL - needed)
 - [ ] Fix #3 ported to Exograph (needed for edge cases)
 - [ ] Fix #4 ported to Exograph (IMPORTANT - eliminates duplicate releases)
-- [ ] Improvements reviewed for Exograph
+- [ ] Consider bcoe/conventional-release-labels for Exograph (optional simplification)
