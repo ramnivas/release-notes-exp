@@ -198,7 +198,7 @@ With:
 3. Manual review/edit of notes via GitHub UI
 4. Click "Publish release" → one release with notes and assets
 
-**For Exograph:** Consider replacing `svenstaro/upload-release-action` with `gh release upload` to avoid creating duplicate releases. This eliminates the manual cleanup step while keeping the review capability.
+**For Exograph:** Replace `svenstaro/upload-release-action` with `gh release upload` to eliminate duplicate releases. This removes the manual cleanup step currently required while keeping the draft review capability.
 
 ---
 
@@ -272,7 +272,7 @@ This is Exograph's workflow - all changes go through PRs with appropriate labels
 - **bcoe action:** Labels based on **PR title** only
 - **Trade-off:** Simpler but requires PR titles to follow conventional commits (e.g., "feat: Add feature")
 
-**For Exograph:** Consider this approach if team is willing to enforce conventional PR titles. Otherwise, keep the custom code for the flexibility of commit-based labeling.
+**For Exograph:** Replace custom labeling code with this maintained action. The team already follows conventional commit format in PR titles (as seen in recent PRs), making this a safe simplification. If commit-based labeling (vs title-based) becomes needed later, can revert.
 
 ---
 
@@ -282,26 +282,122 @@ This is Exograph's workflow - all changes go through PRs with appropriate labels
 
 **Problem:** GitHub's native release notes include author and PR number in format: `"feat: Add feature by @author in #123"`. For cleaner notes, you may want to omit the author: `"feat: Add feature #123"`.
 
-**Solution:** Use `mikepenz/release-changelog-builder-action` with custom `pr_template`:
+**Solution:** Use `mikepenz/release-changelog-builder-action` with custom configuration.
+
+### Step 1: Create Configuration File
+
+Create `.github/release-notes-config.json`:
+
+```json
+{
+  "template": "#{{CHANGELOG}}",
+  "pr_template": "- #{{TITLE}} ##{{NUMBER}}",
+  "categories": [
+    {
+      "title": "## 🚨 Breaking Changes",
+      "labels": ["breaking", "breaking-change"]
+    },
+    {
+      "title": "## 🎉 Features",
+      "labels": ["feat", "feature", "enhancement"]
+    },
+    {
+      "title": "## 🐛 Bug Fixes",
+      "labels": ["bug", "fix", "bugfix"]
+    },
+    {
+      "title": "## 🔒 Security",
+      "labels": ["security"]
+    },
+    {
+      "title": "## 📚 Documentation",
+      "labels": ["documentation", "docs"]
+    },
+    {
+      "title": "## 🎨 Style",
+      "labels": ["style"]
+    },
+    {
+      "title": "## ⚡ Performance",
+      "labels": ["performance", "perf"]
+    },
+    {
+      "title": "## 🏗️ Refactoring",
+      "labels": ["refactor", "refactoring"]
+    },
+    {
+      "title": "## 🧪 Testing",
+      "labels": ["test", "testing"]
+    },
+    {
+      "title": "## 🔨 Build System",
+      "labels": ["build"]
+    },
+    {
+      "title": "## 👷 CI/CD",
+      "labels": ["ci", "cd"]
+    },
+    {
+      "title": "## 🔧 Maintenance",
+      "labels": ["chore", "dependencies", "maintenance"]
+    },
+    {
+      "title": "## ⏪ Reverts",
+      "labels": ["revert"]
+    },
+    {
+      "title": "## 🚀 Other Changes",
+      "labels": []
+    }
+  ],
+  "label_extractor": [
+    {
+      "pattern": ".*",
+      "on_property": "title"
+    }
+  ],
+  "ignore_labels": ["ignore-for-release", "release"],
+  "ignore_authors": ["dependabot", "dependabot[bot]"]
+}
+```
+
+**Key configuration options:**
+- `"template": "#{{CHANGELOG}}"` - Removes the default "Uncategorized" section that appears at the bottom
+- `"pr_template": "- #{{TITLE}} ##{{NUMBER}}"` - Formats each PR as a single line without author (use `##{{NUMBER}}` to get `#123` format)
+- `"labels": []` - Empty array in "Other Changes" category acts as catch-all for PRs without specific labels
+- `"label_extractor"` - Extracts labels from PR title (for use with conventional commits)
+
+### Step 2: Update Workflow
+
+In the create-release job, find where `PREVIOUS_TAG` is determined and add output:
+
+```yaml
+- name: Find previous semantic version tag
+  id: previous_tag
+  run: |
+    # ... existing logic to find PREVIOUS_TAG ...
+
+    if [ -n "$PREVIOUS_TAG" ]; then
+      echo "Previous tag found: $PREVIOUS_TAG"
+      echo "tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+    else
+      echo "No previous tag found or no commits between tags"
+      echo "tag=" >> $GITHUB_OUTPUT
+    fi
+```
+
+Then replace the release creation section:
 
 ```yaml
 - name: Generate release notes with custom format
   id: changelog
   uses: mikepenz/release-changelog-builder-action@v5
   with:
-    configuration: |
-      {
-        "pr_template": "- #{{TITLE}} ##{{NUMBER}}",
-        "categories": [
-          {"title": "## 🚨 Breaking Changes", "labels": ["breaking", "breaking-change"]},
-          {"title": "## 🎉 Features", "labels": ["feat", "feature", "enhancement"]},
-          ...
-        ],
-        "ignore_labels": ["ignore-for-release", "release"],
-        "ignore_authors": ["dependabot", "dependabot[bot]"]
-      }
+    configuration: .github/release-notes-config.json
     fromTag: ${{ steps.previous_tag.outputs.tag }}
     toTag: ${{ github.ref_name }}
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 - name: Create draft release with custom notes
   run: |
@@ -309,35 +405,67 @@ This is Exograph's workflow - all changes go through PRs with appropriate labels
       --draft \
       --notes "${{ steps.changelog.outputs.changelog }}" \
       --title "Release ${{ github.ref_name }}"
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+**Replace this old code:**
+```yaml
+gh release create "${{ github.ref_name }}" \
+  --draft \
+  --generate-notes \
+  --notes-start-tag "$PREVIOUS_TAG" \
+  --title "Release ${{ github.ref_name }}"
+```
+
+### Step 3: Remove Obsolete Files
+
+Delete `.github/release.yml` - it's only used by GitHub's native `--generate-notes`, which we're no longer using.
+
+### Important Notes
+
+**CRITICAL:** The configuration **must** be in a separate JSON file. Inline JSON in the workflow YAML does not work - the action fails to parse it and silently falls back to default templates (which include author and multi-line format). You'll see this warning in logs:
+```
+⚠️ Configuration provided, but it couldn't be found. Fallback to Defaults.
+```
+
+**Format Examples:**
+- Current (with author): `- feat: Add feature by @ramnivas in #123`
+- New (without author): `- feat: Add feature #123`
 
 **Benefits:**
 - Full control over release note formatting
 - Can omit author (`#{{AUTHOR}}`) for cleaner notes
-- Maintains all categorization from `.github/release.yml`
+- Removes "Uncategorized" section at bottom of notes
+- Maintains all categorization with emojis
 - Actively maintained action (~800 stars)
 
 **Trade-offs:**
 - Replaces GitHub's native `--generate-notes` (which is simpler)
-- Category configuration now lives in workflow file instead of `.github/release.yml`
-- `.github/release.yml` is no longer used and can be removed
+- Category configuration now lives in `.github/release-notes-config.json` instead of `.github/release.yml`
+- Adds one more file to maintain
+- Need to manually sync categories if using both this repo and another that uses native notes
 
-**For Exograph:** Consider this approach only if custom formatting is desired. Otherwise, GitHub's native notes are simpler to maintain.
+**For Exograph:** Apply this change for cleaner, more professional release notes without author attribution. While this adds complexity (separate config file vs inline `--generate-notes`), the improved formatting is worth it.
 
 ---
 
 ## Status
 
-- [x] Fix #1 (contents: write permission) applied to test repo
-- [x] Fix #2 (fetch-depth: 0) applied to test repo
-- [x] Fix #3 (tags on same commit) applied to test repo
-- [x] Fix #4 (use gh release upload) applied to test repo
-- [x] Improvement (use bcoe/conventional-release-labels) applied to test repo
-- [x] Improvement (debug output) applied to test repo
-- [x] Improvement (custom release note format) applied to test repo
-- [ ] Fix #1 reviewed for Exograph (may not be needed)
-- [ ] Fix #2 ported to Exograph (CRITICAL - needed)
-- [ ] Fix #3 ported to Exograph (needed for edge cases)
-- [ ] Fix #4 ported to Exograph (IMPORTANT - eliminates duplicate releases)
-- [ ] Consider bcoe/conventional-release-labels for Exograph (optional simplification)
-- [ ] Consider custom release note format for Exograph (optional - for cleaner notes)
+**Applied to test repo:**
+- [x] Fix #1 (contents: write permission)
+- [x] Fix #2 (fetch-depth: 0)
+- [x] Fix #3 (tags on same commit edge case)
+- [x] Fix #4 (use gh release upload)
+- [x] Improvement (use bcoe/conventional-release-labels)
+- [x] Improvement (debug output)
+- [x] Improvement (custom release note format)
+
+**To port to Exograph:**
+- [ ] Fix #1 - Review if needed (may not be necessary, but good practice for portability)
+- [ ] Fix #2 - **CRITICAL** - Add fetch-depth: 0 to enable proper tag detection
+- [ ] Fix #3 - Add commit count check for edge case handling
+- [ ] Fix #4 - **IMPORTANT** - Replace svenstaro/upload-release-action with gh release upload
+- [ ] Improvement - Replace custom PR labeling code with bcoe/conventional-release-labels
+- [ ] Improvement - Add debug output for easier troubleshooting
+- [ ] Improvement - Apply custom release note format (mikepenz action)
