@@ -28,6 +28,6 @@ jobs:
               "revert": "revert",
               "security": "security",
               "breaking": "breaking",
-              "chore": "chore",
+              "chore": "chore"
             }
           ignored_types: '["release"]'
