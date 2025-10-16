@@ -7,6 +7,7 @@ This is a minimal setup to test and iterate on the release notes processing from
 From the Exograph repository, I copied:
 
 **`.github/workflows/release.yml`** - Simplified version of `build-binaries.yml`
+
 - Creates draft releases with auto-generated notes
 - Uses `gh release create --generate-notes`
 - Finds the previous semantic version tag to generate notes between versions
@@ -19,11 +20,13 @@ The key release notes processing happens in the `create-release` job in `.github
 1. **Triggered by tags**: The workflow runs when you push a semantic version tag (e.g., `v1.0.0`)
 
 2. **Finds previous tag**: Uses this command to find the previous semantic version:
+
    ```bash
    git tag --list --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -2 | tail -1
    ```
 
 3. **Generates notes**: Uses GitHub CLI to create a draft release with auto-generated notes:
+
    ```bash
    gh release create "$TAG" \
      --draft \
@@ -42,6 +45,7 @@ The key release notes processing happens in the `create-release` job in `.github
 To test the release notes processing:
 
 1. Make some commits:
+
    ```bash
    git commit -m "Add new feature"
    git commit -m "Fix bug in module"
@@ -49,12 +53,14 @@ To test the release notes processing:
    ```
 
 2. Create and push a tag:
+
    ```bash
    git tag v0.1.0
    git push origin v0.1.0
    ```
 
 3. The workflow will:
+
    - Create a draft release
    - Generate notes from all commits since the last tag
    - Upload build artifacts (if build succeeds)
