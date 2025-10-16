@@ -64,6 +64,7 @@ The key release notes processing happens in the `create-release` job in `.github
    **Important:** The PR title must follow conventional commits format (e.g., `feat:`, `fix:`, `docs:`)
 
 3. **Labels are added automatically** by the label-prs workflow based on your PR title
+
    - `feat: ...` → `feat` label
    - `fix: ...` → `fix` label
    - `docs: ...` → `docs` label
@@ -98,5 +99,3 @@ Based on PR labels (configured in `.github/release.yml`):
 - `test` → 🧪 Testing
 - `ci` → 👷 CI/CD
 - `chore` → 🔧 Maintenance
-
-test change
