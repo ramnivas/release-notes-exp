@@ -28,27 +28,35 @@ Without full history, only the current tag is available, breaking the comparison
 
 ---
 
-## Improvements (Optional)
+## Critical Fixes (Continued)
 
-### 2. Handle edge case: only one tag exists
+### 2. Handle edge case: tags point to same commit
 
 **File:** `.github/workflows/build-binaries.yml` (Exograph) / `.github/workflows/release.yml` (here)
 
 **Location:** In the `create-release` job, after finding PREVIOUS_TAG
 
-**Problem:** When only one tag exists, the script finds the current tag as the "previous" tag, causing issues.
+**Problem:** When multiple tags point to the same commit (or there are no commits between tags), `gh release create --generate-notes --notes-start-tag` fails because there are no commits to generate notes from.
 
 **Fix:**
 ```bash
-# If PREVIOUS_TAG is the same as current tag, treat as no previous tag
-if [ "$PREVIOUS_TAG" = "${{ github.ref_name }}" ]; then
-  PREVIOUS_TAG=""
+# Check if there are any commits between previous and current tag
+if [ -n "$PREVIOUS_TAG" ]; then
+  COMMIT_COUNT=$(git rev-list --count "$PREVIOUS_TAG".."${{ github.ref_name }}" 2>/dev/null || echo "0")
+  echo "Commits between $PREVIOUS_TAG and ${{ github.ref_name }}: $COMMIT_COUNT"
+
+  if [ "$COMMIT_COUNT" = "0" ]; then
+    echo "No commits between tags, generating notes from all history"
+    PREVIOUS_TAG=""
+  fi
 fi
 ```
 
-**Why:** The command `head -2 | tail -1` returns the first tag when there's only one tag, which is the current tag being released.
+**Why:** GitHub's `--generate-notes` with `--notes-start-tag` expects there to be commits between the two tags. When there are none, it fails with exit code 1. This can happen during testing or if tags are created on the same commit.
 
 ---
+
+## Improvements (Optional)
 
 ### 3. Add debug output for troubleshooting
 
@@ -90,8 +98,9 @@ fi
 
 ## Status
 
-- [x] Fix #1 applied to test repo
-- [x] Improvement #2 applied to test repo
-- [x] Improvement #3 applied to test repo
+- [x] Fix #1 (fetch-depth: 0) applied to test repo
+- [x] Fix #2 (tags on same commit) applied to test repo
+- [x] Improvement #3 (debug output) applied to test repo
 - [ ] Fix #1 ported to Exograph
+- [ ] Fix #2 ported to Exograph
 - [ ] Improvements reviewed for Exograph
